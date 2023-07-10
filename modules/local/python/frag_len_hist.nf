@@ -1,5 +1,5 @@
 process FRAG_LEN_HIST {
-    label 'process_medium'
+    label 'process_high'
 
     conda "conda-forge::python=3.8.3 conda-forge::pandas=1.3.3"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
