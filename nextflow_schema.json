@@ -15,9 +15,9 @@
                 "input": {
                     "type": "string",
                     "format": "file-path",
+                    "exists": true,
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
-                    "schema": "assets/schema_input.json",
                     "description": "Path to comma-separated file containing information about the samples in the experiment.",
                     "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row. See [usage docs](https://nf-co.re//usage#samplesheet-input).",
                     "fa_icon": "fas fa-file-csv"
@@ -26,7 +26,8 @@
                     "type": "string",
                     "format": "directory-path",
                     "description": "The output directory where the results will be saved. You have to use absolute paths to store on Cloud infrastructure.",
-                    "fa_icon": "fas fa-folder-open"
+                    "fa_icon": "fas fa-folder-open",
+                    "default": "./results"
                 },
                 "multiqc_title": {
                     "type": "string",
@@ -69,6 +70,10 @@
                     "fa_icon": "fas fa-envelope",
                     "help_text": "Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits. If set in your user config file (`~/.nextflow/config`) then you don't need to specify this on the command line for every run.",
                     "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$"
+                },
+                "dump_scale_factors": {
+                    "type": "boolean",
+                    "description": "Output calculated scale factors from pipeline"
                 }
             }
         },
@@ -108,7 +113,7 @@
                     "type": "string",
                     "default": "K12-MG1655",
                     "fa_icon": "fas fa-book",
-                    "description": "Name of the igenome reference for the spike-in genome"
+                    "description": "Name of the iGenome reference for the spike-in genome, defaulting to E. coli K12, for yeast set to R64-1-1, for fruit fly BDGP6"
                 },
                 "spikein_bowtie2": {
                     "type": "string",
@@ -123,19 +128,12 @@
                 "fasta": {
                     "type": "string",
                     "format": "file-path",
+                    "exists": true,
                     "mimetype": "text/plain",
                     "pattern": "^\\S+\\.fn?a(sta)?(\\.gz)?$",
                     "description": "Path to FASTA genome file.",
                     "help_text": "This parameter is *mandatory* if `--genome` is not specified. If you don't have a BWA index available this will be generated for you automatically. Combine with `--save_reference` to save BWA index for future runs.",
                     "fa_icon": "far fa-file-code"
-                },
-                "igenomes_base": {
-                    "type": "string",
-                    "format": "directory-path",
-                    "description": "Directory / URL base for iGenomes references.",
-                    "default": "s3://ngi-igenomes/igenomes",
-                    "fa_icon": "fas fa-cloud-download-alt",
-                    "hidden": true
                 },
                 "igenomes_ignore": {
                     "type": "boolean",
@@ -296,14 +294,35 @@
                 },
                 "minimum_alignment_q_score": {
                     "type": "integer",
-                    "default": 0,
+                    "default": 20,
                     "fa_icon": "fas fa-sort-numeric-down",
                     "description": "Filter reads below a q-score threshold"
+                },
+                "remove_mitochondrial_reads": {
+                    "type": "boolean",
+                    "fa_icon": "fas fa-clone",
+                    "description": "Filter mitochondrial reads"
+                },
+                "mito_name": {
+                    "type": "string",
+                    "fa_icon": "fas fa-book",
+                    "description": "Name of mitochondrial reads in reference genome. Only necessary when using a custom (non-igenomes) reference genome."
                 },
                 "dedup_target_reads": {
                     "type": "boolean",
                     "fa_icon": "fas fa-clone",
                     "description": "De-duplicate target reads AND control reads (default is control only)"
+                },
+                "remove_linear_duplicates": {
+                    "type": "boolean",
+                    "fa_icon": "fas fa-clone",
+                    "description": "De-duplicate reads based on read 1 5' start position. Relevant for assays using linear amplification with tagmentation (default is false)."
+                },
+                "end_to_end": {
+                    "type": "boolean",
+                    "fa_icon": "fas fa-clone",
+                    "default": true,
+                    "description": "Use --end-to-end mode of Bowtie2 during alignment"
                 },
                 "normalisation_mode": {
                     "type": "string",
@@ -314,7 +333,7 @@
                 },
                 "normalisation_binsize": {
                     "type": "integer",
-                    "default": 1,
+                    "default": 50,
                     "description": "If normsalisation option is one of  \"RPKM\", \"CPM\", \"BPM\" - then the binsize that the reads count is calculated on is used.",
                     "fa_icon": "fas fa-arrows-alt-h"
                 },
@@ -477,6 +496,11 @@
                     "default": 0.2,
                     "description": "Minimum peak overlap for peak reproducibility plot",
                     "fa_icon": "fas fa-align-justify"
+                },
+                "igv_sort_by_groups": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Sort the IGV output tracks by group"
                 }
             }
         },
@@ -557,7 +581,7 @@
                     "description": "Maximum amount of time that can be requested for any single job.",
                     "default": "240.h",
                     "fa_icon": "far fa-clock",
-                    "pattern": "^(\\d+\\.?\\s*(s|m|h|day)\\s*)+$",
+                    "pattern": "^(\\d+\\.?\\s*(s|m|h|d|day)\\s*)+$",
                     "hidden": true,
                     "help_text": "Use to set an upper-limit for the time requirement for each process. Should be a string in the format integer-unit e.g. `--max_time '2.h'`"
                 }
@@ -590,6 +614,10 @@
                     "fa_icon": "fas fa-copy",
                     "enum": ["symlink", "rellink", "link", "copy", "copyNoFollow", "move"],
                     "hidden": true
+                },
+                "singularity_pull_docker_container": {
+                    "type": "boolean",
+                    "description": "Pull Docker container."
                 },
                 "email_on_fail": {
                     "type": "string",
@@ -628,16 +656,21 @@
                 },
                 "multiqc_config": {
                     "type": "string",
+                    "format": "file-path",
                     "description": "Custom config file to supply to MultiQC.",
                     "fa_icon": "fas fa-cog",
                     "hidden": true
                 },
-                "tracedir": {
+                "multiqc_logo": {
                     "type": "string",
-                    "description": "Directory to keep pipeline Nextflow logs and reports.",
-                    "default": "${params.outdir}/pipeline_info",
-                    "fa_icon": "fas fa-cogs",
+                    "description": "Custom logo file to supply to MultiQC. File name must also be set in the MultiQC config file",
+                    "fa_icon": "fas fa-image",
                     "hidden": true
+                },
+                "multiqc_methods_description": {
+                    "type": "string",
+                    "description": "Custom MultiQC yaml file containing HTML including a methods description.",
+                    "fa_icon": "fas fa-cog"
                 },
                 "validate_params": {
                     "type": "boolean",
@@ -646,12 +679,26 @@
                     "fa_icon": "fas fa-check-square",
                     "hidden": true
                 },
-                "show_hidden_params": {
+                "validationShowHiddenParams": {
                     "type": "boolean",
                     "fa_icon": "far fa-eye-slash",
                     "description": "Show all params when using `--help`",
                     "hidden": true,
                     "help_text": "By default, parameters set as _hidden_ in the schema are not shown on the command line when a user runs with `--help`. Specifying this option will tell the pipeline to show all parameters."
+                },
+                "validationFailUnrecognisedParams": {
+                    "type": "boolean",
+                    "fa_icon": "far fa-check-circle",
+                    "description": "Validation of parameters fails when an unrecognised parameter is found.",
+                    "hidden": true,
+                    "help_text": "By default, when an unrecognised parameter is found, it returns a warinig."
+                },
+                "validationLenientMode": {
+                    "type": "boolean",
+                    "fa_icon": "far fa-check-circle",
+                    "description": "Validation of parameters in lenient more.",
+                    "hidden": true,
+                    "help_text": "Allows string values that are parseable as numbers or booleans. For further information see [JSONSchema docs](https://github.com/everit-org/json-schema#lenient-mode)."
                 }
             }
         }

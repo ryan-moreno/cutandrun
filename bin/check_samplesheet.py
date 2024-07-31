@@ -1,5 +1,29 @@
 #!/usr/bin/env python
 
+# MIT License
+#
+# Copyright (c) 2023 @chris-cheshire
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# Author: @chris-cheshire
+
 import os
 import sys
 import errno
@@ -220,6 +244,34 @@ def check_samplesheet(file_in, file_out, use_control):
             "WARNING: Parameter --use_control was set to false, but an control group was found in " + str(file_in) + "."
         )
 
+    # Calculate the exact control/replicate id combo
+    if use_control == "true":
+        for group, reps in sorted(sample_run_dict.items()):
+            # Calculate the ctrl group
+            ctrl_group = None
+            is_ctrl = False
+            for replicate, info in sorted(reps.items()):
+                ctrl_group = info[0][2]
+                if ctrl_group == "":
+                    is_ctrl = True
+                break
+
+            # Continue if ctrl
+            if is_ctrl:
+                continue
+
+            # Get num reps
+            num_reps = len(reps)
+            num_ctrl_reps = len(sample_run_dict[ctrl_group])
+
+            # Assign actual ctrl rep id
+            for rep, info in sorted(reps.items()):
+                if num_reps == num_ctrl_reps:
+                    ctrl_group_new = ctrl_group + "_" + str(rep)
+                else:
+                    ctrl_group_new = ctrl_group + "_1"
+                info[0][2] = ctrl_group_new
+
     ## Write validated samplesheet with appropriate columns
     if len(sample_run_dict) > 0:
         out_dir = os.path.dirname(file_out)
@@ -243,7 +295,8 @@ def check_samplesheet(file_in, file_out, use_control):
                     check_group = sample_run_dict[sample][replicate][0][2]
                     for tech_rep in sample_run_dict[sample][replicate]:
                         if tech_rep[2] != check_group:
-                            print_error("Control group must match within technical replicates", tech_rep[2])
+                            tech_rep[2] = check_group
+                            # print_error("Control group must match within technical replicates", tech_rep[2])
 
                     ## Write to file
                     for idx, sample_info in enumerate(sample_run_dict[sample][replicate]):

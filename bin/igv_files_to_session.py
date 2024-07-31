@@ -1,10 +1,28 @@
 #!/usr/bin/env python
 
-#######################################################################
-#######################################################################
-## Created on July 4th 2018 to create IGV session file from file list
-#######################################################################
-#######################################################################
+# MIT License
+#
+# Copyright (c) 2023 @chris-cheshire
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# Author: @chris-cheshire
 
 import os
 import errno
@@ -81,6 +99,15 @@ def igv_files_to_session(XMLOut, ListFile, Genome, GtfBed, PathPrefix=""):
             break
             fout.close()
 
+    ## Construct groups
+    groups = {}
+    group_num = 1
+    for ifile, colour in fileList:
+        group = os.path.basename(ifile).split("_R")[0]
+        if group not in groups:
+            groups[group] = group_num
+            group_num = group_num + 1
+
     ## ADD RESOURCES SECTION
     XMLStr = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n'
     XMLStr += '<Session genome="%s" hasGeneTrack="true" hasSequenceTrack="true" locus="All" version="8">\n' % (Genome)
@@ -141,8 +168,8 @@ def igv_files_to_session(XMLOut, ListFile, Genome, GtfBed, PathPrefix=""):
             )
         elif extension in [".bw", ".bigwig", ".tdf", ".bedGraph", ".bedgraph"]:
             XMLStr += (
-                '\t\t<Track altColor="0,0,178" autoScale="true" clazz="org.broad.igv.track.DataSourceTrack" color="%s" '
-                % (colour)
+                '\t\t<Track altColor="0,0,178" autoScale="true" autoscaleGroup="%s" clazz="org.broad.igv.track.DataSourceTrack" color="%s" '
+                % (groups[os.path.basename(ifile).split("_R")[0]], colour)
             )
             XMLStr += 'displayMode="COLLAPSED" featureVisibilityWindow="-1" fontSize="12" height="100" '
             XMLStr += (
